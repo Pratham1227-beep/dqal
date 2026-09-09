@@ -31,6 +31,103 @@ class DQALResult:
     batch_id: str
     audit_meta: Dict[str, Any]
 
+    def summary(self, compact: bool = False) -> str:
+        """
+        Return a clear, human-readable summary of the batch quality score and gating decision.
+
+        Args:
+            compact: If True, returns a streamlined key-value output.
+                     If False (default), returns a structured report card.
+        """
+        # Interpretation of decision using normal, easy-to-understand terms
+        decision_map = {
+            "PASSED": "[PASSED] Safe - Quality check passed",
+            "SERVE": "[PASSED] Safe - Quality check passed",
+            "PASS": "[PASSED] Safe - Quality check passed",
+            "WARNING": "[WARNING] Caution - Degraded data quality detected",
+            "FLAG": "[WARNING] Caution - Degraded data quality detected",
+            "WARN": "[WARNING] Caution - Degraded data quality detected",
+            "BLOCKED": "[BLOCKED] Action Required - Severe degradation; fallback used",
+            "ABSTAIN": "[BLOCKED] Action Required - Severe degradation; fallback used",
+            "BLOCK": "[BLOCKED] Action Required - Severe degradation; fallback used",
+        }
+        dec_desc = decision_map.get(
+            self.decision.upper() if isinstance(self.decision, str) else str(self.decision),
+            f"[{self.decision}] Status: {self.decision}"
+        )
+
+        # Quality rating
+        if self.Q >= 0.80:
+            quality_rating = "High Quality"
+        elif self.Q >= 0.50:
+            quality_rating = "Degraded / Warning"
+        else:
+            quality_rating = "Severely Degraded"
+
+        def _format_signal(key: str, val: float) -> Tuple[str, str]:
+            pct = val * 100
+            k = key.lower()
+            if "missing" in k:
+                name = "Data Completeness"
+                desc = "No missing values" if val >= 0.99 else f"{(1.0 - val) * 100:.1f}% missing"
+            elif "drift" in k:
+                name = "Covariate Stability"
+                desc = "Minimal drift" if val >= 0.85 else "Moderate drift" if val >= 0.50 else "High drift"
+            elif "outlier" in k or "anomaly" in k:
+                name = "Inlier Adherence"
+                desc = "Normal distribution" if val >= 0.85 else "Mild outliers" if val >= 0.50 else "Severe outliers"
+            else:
+                name = key.replace("_", " ").title()
+                desc = "Normal" if val >= 0.80 else "Degraded"
+            return name, f"{pct:5.1f}% ({val:.3f}) - {desc}"
+
+        # Sample predictions
+        preds_str = "None"
+        if self.predictions is not None:
+            if hasattr(self.predictions, "tolist"):
+                preds_list = self.predictions.tolist()
+            else:
+                preds_list = list(self.predictions)
+            sample = preds_list[:5]
+            preds_str = f"{sample} (first {len(sample)} of {len(preds_list)} samples)"
+
+        if compact:
+            lines = [
+                f"Batch Quality Score (Q): {self.Q:.3f} ({self.Q * 100:.1f}% - {quality_rating})",
+                f"Gating Decision:         {dec_desc}",
+                "Sub-Signals (1.0 = Pristine):",
+            ]
+            for key, val in self.signals.items():
+                name, desc = _format_signal(key, val)
+                lines.append(f"  • {name:<22}: {desc}")
+            lines.append(f"Sample Predictions:      {preds_str}")
+            return "\n".join(lines)
+
+        # Full Report Card
+        width = 62
+        lines = [
+            "=" * width,
+            "                   DQAL Batch Quality Report".center(width).rstrip(),
+            "=" * width,
+            f"Gating Decision : {dec_desc}",
+            f"Quality Score Q : {self.Q:.3f} / 1.000 ({self.Q * 100:.1f}% - {quality_rating})",
+            f"Model Version   : {self.model_version}",
+            f"Batch ID        : {self.batch_id}",
+            "",
+            "Sub-Signals (1.0 = Pristine, 0.0 = Degraded):",
+        ]
+        for key, val in self.signals.items():
+            name, desc = _format_signal(key, val)
+            lines.append(f"  • {name:<22}: {desc}")
+
+        lines.append("")
+        lines.append(f"Sample Predictions: {preds_str}")
+        lines.append("=" * width)
+        return "\n".join(lines)
+
+    def __str__(self) -> str:
+        return self.summary()
+
 
 class SklearnModelAdapter:
     """Adapter for scikit-learn estimators."""
@@ -210,11 +307,18 @@ class DQAL:
         probabilities: Optional[np.ndarray] = None
         served = False
 
-        if decision in (QualityDecision.SERVE, QualityDecision.FLAG):
+        if decision in (
+            QualityDecision.PASSED,
+            QualityDecision.WARNING,
+            "PASSED",
+            "WARNING",
+            "SERVE",
+            "FLAG",
+        ):
             predictions = self.model.predict(X)
             probabilities = self.model.predict_proba(X)
             served = True
-        else:  # ABSTAIN
+        else:  # BLOCKED / ABSTAIN
             predictions = fallback_prediction
             probabilities = None
             served = False

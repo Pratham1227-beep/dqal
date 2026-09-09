@@ -69,17 +69,17 @@ def test_dqal_wrapper_serve_and_abstain(sample_dataset, tmp_path):
     dqal = DQAL(model=clf, config=config, model_version="v1.0.0")
     dqal.fit_baseline(X)
 
-    # 1. Clean batch -> SERVE
+    # 1. Clean batch -> PASSED (legacy: SERVE)
     res_clean = dqal.predict(X[:30])
-    assert res_clean.decision == "SERVE"
+    assert res_clean.decision in ("PASSED", "SERVE")
     assert res_clean.served is True
     assert res_clean.predictions is not None
     assert len(res_clean.predictions) == 30
 
-    # 2. Catastrophically degraded batch -> ABSTAIN
+    # 2. Catastrophically degraded batch -> BLOCKED (legacy: ABSTAIN)
     corrupted = np.full_like(X[:30], np.nan)
     res_corrupt = dqal.predict(corrupted, fallback_prediction=np.zeros(30))
-    assert res_corrupt.decision == "ABSTAIN"
+    assert res_corrupt.decision in ("BLOCKED", "ABSTAIN")
     assert res_corrupt.served is False
     assert np.array_equal(res_corrupt.predictions, np.zeros(30))
 
@@ -101,3 +101,33 @@ def test_dqal_save_and_load_package(sample_dataset, tmp_path):
 
     res = loaded_dqal.predict(X[:10])
     assert res.predictions is not None
+
+
+def test_dqal_result_summary(sample_dataset):
+    X, y = sample_dataset
+    clf = LogisticRegression().fit(X, y)
+    dqal = DQAL(model=clf, model_version="v1.0.0")
+    dqal.fit_baseline(X)
+
+    res = dqal.predict(X[:20])
+
+    # Default report format
+    summary_text = res.summary()
+    assert "DQAL Batch Quality Report" in summary_text
+    assert "Gating Decision" in summary_text
+    assert "[PASSED]" in summary_text
+    assert "Quality Score Q" in summary_text
+    assert "Data Completeness" in summary_text
+    assert "Covariate Stability" in summary_text
+    assert "Inlier Adherence" in summary_text
+    assert "Sample Predictions" in summary_text
+
+    # Compact format
+    compact_text = res.summary(compact=True)
+    assert "Batch Quality Score (Q):" in compact_text
+    assert "Gating Decision:" in compact_text
+    assert "Sub-Signals (1.0 = Pristine):" in compact_text
+
+    # str(res) returns default summary
+    assert str(res) == summary_text
+

@@ -1,6 +1,6 @@
 """
 Trigger Logic and 3-Tier State Machine for DQAL.
-Implements SERVE / FLAG / ABSTAIN decision gating with hysteresis dead-band and persistence smoothing.
+Implements PASSED / WARNING / BLOCKED decision gating with hysteresis dead-band and persistence smoothing.
 """
 
 from __future__ import annotations
@@ -10,25 +10,53 @@ from dqal.config import DQALConfig, ThresholdsConfig, HysteresisConfig
 
 
 class QualityDecision(str, Enum):
-    SERVE = "SERVE"
-    FLAG = "FLAG"
-    ABSTAIN = "ABSTAIN"
+    """
+    3-tier gating decision for batch data quality.
+
+    Standard terms:
+    - PASSED:  High quality (Q > flag_below). Predictions executed normally.
+    - WARNING: Mild/moderate degradation (abstain_below < Q <= flag_below). Flagged with telemetry.
+    - BLOCKED: Critical quality failure (Q <= abstain_below). Execution halted, fallback used.
+    """
+    PASSED = "PASSED"
+    WARNING = "WARNING"
+    BLOCKED = "BLOCKED"
+
+    # Backward-compatible aliases for legacy SERVE / FLAG / ABSTAIN
+    SERVE = "PASSED"
+    FLAG = "WARNING"
+    ABSTAIN = "BLOCKED"
+
+    @classmethod
+    def _missing_(cls, value: object) -> Any:
+        if isinstance(value, str):
+            mapping = {
+                "SERVE": cls.PASSED,
+                "FLAG": cls.WARNING,
+                "ABSTAIN": cls.BLOCKED,
+                "PASS": cls.PASSED,
+                "WARN": cls.WARNING,
+                "BLOCK": cls.BLOCKED,
+            }
+            if value.upper() in mapping:
+                return mapping[value.upper()]
+        return super()._missing_(value)
 
 
 class TriggerGate:
     """
     Explainable, auditable 3-tier state machine for gating model predictions.
 
-    - SERVE: High quality (Q > flag_below). Predictions served normally.
-    - FLAG: Degraded quality (abstain_below < Q <= flag_below). Predictions served with warning/log.
-    - ABSTAIN: Severe quality degradation (Q <= abstain_below). Predictions withheld or fallback used.
+    - PASSED (SERVE): High quality (Q > flag_below). Predictions served normally.
+    - WARNING (FLAG): Degraded quality (abstain_below < Q <= flag_below). Predictions served with warning/log.
+    - BLOCKED (ABSTAIN): Severe quality degradation (Q <= abstain_below). Predictions withheld or fallback used.
 
     Includes Hysteresis dead-band and consecutive confirmation buffer to eliminate rapid state flapping.
     """
 
     def __init__(self, config: Optional[DQALConfig] = None):
         self.config = config or DQALConfig()
-        self.current_state: QualityDecision = QualityDecision.SERVE
+        self.current_state: QualityDecision = QualityDecision.PASSED
         self.pending_state: Optional[QualityDecision] = None
         self.consecutive_count: int = 0
         self.decision_history: List[Dict[str, Any]] = []
@@ -36,11 +64,11 @@ class TriggerGate:
     def _raw_decision(self, Q: float) -> QualityDecision:
         """Raw threshold check without hysteresis."""
         if Q > self.config.thresholds.flag_below:
-            return QualityDecision.SERVE
+            return QualityDecision.PASSED
         elif Q > self.config.thresholds.abstain_below:
-            return QualityDecision.FLAG
+            return QualityDecision.WARNING
         else:
-            return QualityDecision.ABSTAIN
+            return QualityDecision.BLOCKED
 
     def decide(self, Q: float) -> Tuple[QualityDecision, Dict[str, Any]]:
         """
@@ -56,34 +84,34 @@ class TriggerGate:
         high_thresh = self.config.thresholds.flag_below
 
         # Determine target state considering deadband around current state
-        if self.current_state == QualityDecision.SERVE:
-            # Drop to FLAG requires falling below (high_thresh - deadband)
+        if self.current_state == QualityDecision.PASSED:
+            # Drop to WARNING requires falling below (high_thresh - deadband)
             if Q <= (low_thresh - deadband):
-                target_state = QualityDecision.ABSTAIN
+                target_state = QualityDecision.BLOCKED
             elif Q <= (high_thresh - deadband):
-                target_state = QualityDecision.FLAG
+                target_state = QualityDecision.WARNING
             else:
-                target_state = QualityDecision.SERVE
+                target_state = QualityDecision.PASSED
 
-        elif self.current_state == QualityDecision.FLAG:
-            # Upgrade to SERVE requires exceeding (high_thresh + deadband)
-            # Downgrade to ABSTAIN requires falling below (low_thresh - deadband)
+        elif self.current_state == QualityDecision.WARNING:
+            # Upgrade to PASSED requires exceeding (high_thresh + deadband)
+            # Downgrade to BLOCKED requires falling below (low_thresh - deadband)
             if Q > (high_thresh + deadband):
-                target_state = QualityDecision.SERVE
+                target_state = QualityDecision.PASSED
             elif Q <= (low_thresh - deadband):
-                target_state = QualityDecision.ABSTAIN
+                target_state = QualityDecision.BLOCKED
             else:
-                target_state = QualityDecision.FLAG
+                target_state = QualityDecision.WARNING
 
-        else:  # current_state == QualityDecision.ABSTAIN
-            # Upgrade to FLAG requires exceeding (low_thresh + deadband)
-            # Upgrade to SERVE requires exceeding (high_thresh + deadband)
+        else:  # current_state == QualityDecision.BLOCKED
+            # Upgrade to WARNING requires exceeding (low_thresh + deadband)
+            # Upgrade to PASSED requires exceeding (high_thresh + deadband)
             if Q > (high_thresh + deadband):
-                target_state = QualityDecision.SERVE
+                target_state = QualityDecision.PASSED
             elif Q > (low_thresh + deadband):
-                target_state = QualityDecision.FLAG
+                target_state = QualityDecision.WARNING
             else:
-                target_state = QualityDecision.ABSTAIN
+                target_state = QualityDecision.BLOCKED
 
         # Consecutive confirmation check
         if target_state != self.current_state:
@@ -124,8 +152,9 @@ class TriggerGate:
         return self.current_state, audit_meta
 
     def reset(self) -> None:
-        """Reset state machine to initial SERVE state."""
-        self.current_state = QualityDecision.SERVE
+        """Reset state machine to initial PASSED state."""
+        self.current_state = QualityDecision.PASSED
         self.pending_state = None
         self.consecutive_count = 0
         self.decision_history.clear()
+

@@ -135,8 +135,8 @@ def run_full_benchmark(output_plot_path: str = "benchmark_results.png") -> None:
         print(f"   * {decision:<8}: {count:2d} batches ({pct:.1f}%)")
 
     # Early-warning lead time calculation:
-    # First batch where DQAL flags (FLAG or ABSTAIN) vs first batch where accuracy drops below 80%
-    first_flag_batch = df_res[df_res["decision"].isin(["FLAG", "ABSTAIN"])]["batch_idx"].min()
+    # First batch where DQAL flags (WARNING or BLOCKED) vs first batch where accuracy drops below 80%
+    first_flag_batch = df_res[df_res["decision"].isin(["FLAG", "WARNING", "ABSTAIN", "BLOCKED"])]["batch_idx"].min()
     first_acc_drop_batch = df_res[df_res["real_accuracy"] < 0.80]["batch_idx"].min()
     lead_time = first_acc_drop_batch - first_flag_batch
 
@@ -150,9 +150,9 @@ def run_full_benchmark(output_plot_path: str = "benchmark_results.png") -> None:
 
     # Panel 1: Timeline of Q vs Real Accuracy
     ax1 = axes[0]
-    ax1.axhspan(0.8, 1.05, color="#22c55e", alpha=0.10, label="SERVE Zone (Q > 0.8)")
-    ax1.axhspan(0.5, 0.8, color="#eab308", alpha=0.10, label="FLAG Zone (0.5 < Q <= 0.8)")
-    ax1.axhspan(0.0, 0.5, color="#ef4444", alpha=0.10, label="ABSTAIN Zone (Q <= 0.5)")
+    ax1.axhspan(0.8, 1.05, color="#22c55e", alpha=0.10, label="PASSED Zone (Q > 0.8)")
+    ax1.axhspan(0.5, 0.8, color="#eab308", alpha=0.10, label="WARNING Zone (0.5 < Q <= 0.8)")
+    ax1.axhspan(0.0, 0.5, color="#ef4444", alpha=0.10, label="BLOCKED Zone (Q <= 0.5)")
 
     ax1.plot(df_res["batch_idx"], df_res["Q"], color="#4f46e5", linewidth=2.8, marker="o", markersize=4, label="DQAL Quality Score Q", zorder=4)
     ax1.plot(df_res["batch_idx"], df_res["real_accuracy"], color="#059669", linewidth=2.4, linestyle="--", marker="s", markersize=4, label="True Model Accuracy", zorder=3)

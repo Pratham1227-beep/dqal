@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Quality Scorer** with three sub-signals: Missingness, Drift (PSI/JS divergence), and Outlier (Isolation Forest / Mahalanobis).
-- **3-tier gating state machine** (`SERVE` / `FLAG` / `ABSTAIN`) with hysteresis dead-band and consecutive confirmation to prevent flapping.
+- **3-tier gating state machine** (`PASSED` / `WARNING` / `BLOCKED`) with hysteresis dead-band and consecutive confirmation to prevent flapping.
 - **Model-agnostic adapter** wrapping scikit-learn estimators, PyTorch `nn.Module`, and custom callables via `DQAL.predict()`.
 - **Privacy-preserving SQLite telemetry logger** — logs statistical metrics only; raw feature logging disabled by default.
 - **Retraining orchestrator** with minimum data volume, label verification, and validation-gated model promotion with rollback.

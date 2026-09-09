@@ -39,8 +39,8 @@ Post-hoc monitoring systems identify these failures days or weeks after damage i
 
 | Production Hazard | Unguarded Pipeline | DQAL-Guarded Pipeline |
 | :--- | :--- | :--- |
-| **Missing / Null Features** | Silent imputation failures, corrupted outputs | Immediate `ABSTAIN` fallback, null-rate attribution |
-| **Covariate & Feature Drift** | Degraded accuracy with high model confidence | `FLAG` warning state + automated retrain trigger |
+| **Missing / Null Features** | Silent imputation failures, corrupted outputs | Immediate `BLOCKED` fallback, null-rate attribution |
+| **Covariate & Feature Drift** | Degraded accuracy with high model confidence | `WARNING` state + automated retrain trigger |
 | **Outlier & Sensor Noise** | Extreme prediction spikes, invalid decisions | Outlier isolation via Isolation Forest & Mahalanobis |
 | **Boundary Flapping** | Rapidly toggling alerts near decision boundaries | Hysteresis dead-bands & confirmation windows |
 | **Unsafe Retraining** | Poisoning active model with unlabeled/dirty data | Gated promotion: requires verified labels + validation gain |
@@ -92,18 +92,27 @@ dqal.fit_baseline(X_train)
 result = dqal.predict(X_test.iloc[:50])
 
 # 4. Inspect runtime decisions and sub-signal attribution
-print(f"Batch Quality Score (Q): {result.Q:.3f}")
-print(f"Gating Decision:         {result.decision}")     # SERVE, FLAG, or ABSTAIN
-print(f"Sub-Signals:             {result.signals}")      # Missingness, Drift, Outlier
-print(f"Sample Predictions:      {result.predictions[:5]}")
+print(result.summary())
+# Or print(result.summary(compact=True)) for a compact summary
 ```
 
 ### Expected Terminal Output:
 ```text
-Batch Quality Score (Q): 0.942
-Gating Decision:         SERVE
-Sub-Signals:             {'missing_quality': 1.0, 'drift_quality': 0.912, 'outlier_quality': 0.938}
-Sample Predictions:      [0 1 0 1 0]
+==============================================================
+                  DQAL Batch Quality Report                   
+==============================================================
+Gating Decision : [PASSED] Safe - Quality check passed
+Quality Score Q : 0.942 / 1.000 (94.2% - High Quality)
+Model Version   : v1.0.0
+Batch ID        : batch_7a8f1e20
+
+Sub-Signals (1.0 = Pristine, 0.0 = Degraded):
+  • Data Completeness     : 100.0% (1.000) - No missing values
+  • Covariate Stability   :  91.2% (0.912) - Minimal drift
+  • Inlier Adherence      :  93.8% (0.938) - Normal distribution
+
+Sample Predictions: [0, 1, 0, 1, 0] (first 5 of 50 samples)
+==============================================================
 ```
 
 ---
@@ -124,9 +133,9 @@ Sample Predictions:      [0 1 0 1 0]
                                         ▼
              ┌──────────────────────────────────────────────────────┐
              │               2. HYSTERESIS TRIGGER GATE             │
-             │   • Q > 0.80        →  SERVE   (Green light)         │
-             │   • 0.50 < Q ≤ 0.80  →  FLAG    (Elevated risk)       │
-             │   • Q ≤ 0.50        →  ABSTAIN (Safe fallback)       │
+             │   • Q > 0.80        →  PASSED   (Green light / Safe)     │
+             │   • 0.50 < Q ≤ 0.80  →  WARNING  (Yellow light / Caution) │
+             │   • Q ≤ 0.50        →  BLOCKED  (Red light / Safe block) │
              │   * Stabilized with dead-bands & confirmation count  │
              └──────────────────────────┬───────────────────────────┘
                                         │ Decision
@@ -134,7 +143,7 @@ Sample Predictions:      [0 1 0 1 0]
                      ▼                                     ▼
       ┌─────────────────────────────┐       ┌─────────────────────────────┐
       │      3. WRAPPED MODEL       │       │    4. TELEMETRY LOGGER      │
-      │   Executes or abstains;     │       │   Privacy-safe SQLite sync; │
+      │   Executes or blocks;       │       │   Privacy-safe SQLite sync; │
       │   returns safe defaults.    │       │   zero raw PII by default.  │
       └─────────────────────────────┘       └──────────────┬──────────────┘
                                                            │

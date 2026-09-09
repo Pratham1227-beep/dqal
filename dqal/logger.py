@@ -172,8 +172,8 @@ class TelemetryLogger:
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT 
-                    SUM(CASE WHEN decision = 'FLAG' THEN 1 ELSE 0 END) as flags,
-                    SUM(CASE WHEN decision = 'ABSTAIN' THEN 1 ELSE 0 END) as abstains
+                    SUM(CASE WHEN decision IN ('FLAG', 'WARNING', 'WARN') THEN 1 ELSE 0 END) as flags,
+                    SUM(CASE WHEN decision IN ('ABSTAIN', 'BLOCKED', 'BLOCK') THEN 1 ELSE 0 END) as abstains
                 FROM predictions_telemetry WHERE id > ?
             """, (since_id,))
             row = cursor.fetchone()
