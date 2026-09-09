@@ -1,0 +1,32 @@
+weights:
+  missingness: 0.3
+  drift: 0.4
+  outlier: 0.3
+
+thresholds:
+  abstain_below: 0.5
+  flag_below: 0.8
+
+hysteresis:
+  deadband: 0.03
+  consecutive_batches: 2
+
+mode: batch  # "batch" or "row"
+batch_size: 100
+
+scorer_settings:
+  psi_bins: 10
+  categorical_min_freq: 5
+  outlier_method: "isolation_forest"  # "isolation_forest" or "mahalanobis"
+  outlier_contamination: 0.05
+  use_feature_importances: false
+
+logging:
+  db_path: "dqal_telemetry.db"
+  log_raw_features: false  # Never log raw features by default (privacy/PII safety)
+
+retrain:
+  min_flagged_batches: 5
+  min_samples: 100
+  require_labels: true
+  min_improvement_delta: 0.01  # Candidate retrained model must improve val metric by at least 1%

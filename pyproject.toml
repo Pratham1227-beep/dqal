@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dqal"
+version = "0.1.0"
+description = "DQAL — Data-Quality-Aware Learning: A real-time, model-agnostic quality assurance and selective retraining framework for ML pipelines."
+readme = "README.md"
+# TODO: Replace with your real name and email before publishing
+authors = [{ name = "Pratham Khatri", email = "prathamdkhatri@gmail.com" }]
+license = "MIT"
+requires-python = ">=3.10"
+keywords = ["machine-learning", "data-quality", "mlops", "drift-detection", "model-monitoring"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Quality Assurance",
+]
+dependencies = [
+    "numpy>=1.23.0",
+    "pandas>=1.5.0",
+    "scipy>=1.9.0",
+    "scikit-learn>=1.1.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+torch = ["torch>=2.0.0"]
+viz = ["matplotlib>=3.6.0", "seaborn>=0.12.0", "streamlit>=1.20.0"]
+dev = ["pytest>=7.0.0", "pytest-cov>=4.0.0"]
+all = [
+    "torch>=2.0.0",
+    "matplotlib>=3.6.0",
+    "seaborn>=0.12.0",
+    "streamlit>=1.20.0",
+    "pytest>=7.0.0",
+]
+
+TODO: Uncomment and update with your GitHub username
+[project.urls]
+Homepage = "https://github.com/Pratham1227-beep/dqal"
+Repository = "https://github.com/Pratham1227-beep/dqal"
+"Bug Tracker" = "https://github.com/Pratham1227-beep/dqal/issues"
+Changelog = "https://github.com/Pratham1227-beep/dqal/blob/main/CHANGELOG.md"
+
+[tool.setuptools]
+packages = ["dqal", "benchmarks"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --import-mode=importlib"
+testpaths = ["tests"]
