@@ -44,7 +44,6 @@ all = [
     "pytest>=7.0.0",
 ]
 
-TODO: Uncomment and update with your GitHub username
 [project.urls]
 Homepage = "https://github.com/Pratham1227-beep/dqal"
 Repository = "https://github.com/Pratham1227-beep/dqal"
