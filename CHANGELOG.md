@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Privacy-preserving SQLite telemetry logger** — logs statistical metrics only; raw feature logging disabled by default.
 - **Retraining orchestrator** with minimum data volume, label verification, and validation-gated model promotion with rollback.
 - **Learned Quality Scorer** for training a meta-model on historical quality signals.
-- **Streamlit dashboard** for real-time Q-score monitoring, decision zone visualization, and sub-signal attribution.
+- **Terminal telemetry reporting & SQLite logger** for real-time batch metrics, gating decisions, and selective retraining history.
 - **60-batch degradation benchmark** (`benchmarks/run_benchmark.py`) validating correlation, latency, early warning, and label safety.
 - **CI pipeline** via GitHub Actions across Python 3.10 / 3.11 / 3.12.
 - **YAML-based configuration** (`configs/default_config.yaml`) for weights, thresholds, hysteresis, logging, and retrain policy.

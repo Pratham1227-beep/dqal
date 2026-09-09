@@ -1,6 +1,6 @@
 # 🛡️ DQAL — Data-Quality-Aware Learning
 
-[![DQAL CI](https://github.com/dqal/dqal/actions/workflows/ci.yml/badge.svg)](https://github.com/dqal/dqal)
+[![DQAL CI](https://github.com/Pratham1227-beep/dqal/actions/workflows/ci.yml/badge.svg)](https://github.com/Pratham1227-beep/dqal)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -56,8 +56,8 @@ Traditional monitoring detects these weeks after downstream accuracy degrades. *
                                                               │
                                                               ▼
                                                     ┌───────────────────┐
-                                                    │ 6. DASHBOARD      │
-                                                    │ (Streamlit live   │
+                                                    │ 6. TERMINAL LOGS  │
+                                                    │ (Real-time stdout │
                                                     │  telemetry & Q)   │
                                                     └───────────────────┘
 ```
@@ -71,7 +71,7 @@ Traditional monitoring detects these weeks after downstream accuracy degrades. *
 - **🚦 3-Tier State Machine with Hysteresis**: Prevents state flapping near threshold boundaries with dead-bands and consecutive confirmation counts.
 - **🔒 Privacy-Preserving Telemetry**: Logs statistical metrics to SQLite; disables raw feature logging by default to prevent PII exposure.
 - **🔄 Validated Retraining & Rollback**: Enforces minimum data volume and verified label availability before retraining. Only promotes candidate models if validation accuracy beats active models.
-- **📈 Streamlit Monitoring Dashboard**: Real-time visual tracking of $Q$, decision zones, sub-signal root-cause attribution, and model version transitions.
+- **💻 Terminal-First Telemetry & Inspection**: Real-time command-line logging of $Q$, gating decisions (`SERVE`/`FLAG`/`ABSTAIN`), sub-signal diagnostics, and model transition events directly in terminal output.
 
 ---
 
@@ -79,7 +79,7 @@ Traditional monitoring detects these weeks after downstream accuracy degrades. *
 
 ```bash
 # Clone repository
-git clone https://github.com/dqal/dqal.git
+git clone https://github.com/Pratham1227-beep/dqal.git
 cd dqal
 
 # Install in editable mode with all optional dependencies (visualization, PyTorch, dev)
@@ -190,10 +190,23 @@ We evaluated DQAL across a progressive 60-batch degradation simulation (`benchma
 
 ---
 
-## 8. Launching the Streamlit Dashboard
+## 8. Inspecting Telemetry in Terminal
+
+DQAL logs structured, privacy-safe metrics per batch to SQLite (`dqal_telemetry.db`) and displays real-time gating decisions and sub-signals in your terminal:
+
+```python
+from dqal.logger import TelemetryLogger
+
+# Inspect logged telemetry in terminal
+logger = TelemetryLogger("dqal_telemetry.db")
+df = logger.get_telemetry_df()
+print(df[["batch_id", "Q", "decision", "missing_signal", "drift_signal", "outlier_signal"]].tail(10))
+```
+
+Or query directly using the SQLite CLI:
 
 ```bash
-streamlit run dqal/dashboard.py
+sqlite3 dqal_telemetry.db "SELECT batch_id, Q, decision, model_version FROM predictions_telemetry ORDER BY id DESC LIMIT 10;"
 ```
 
 ---
