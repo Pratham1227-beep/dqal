@@ -20,6 +20,11 @@
 </div>
 
 ---
+## Introduction
+
+Machine learning models often perform well during development but can become unreliable after they are deployed in the real world. Changes in incoming data, missing or incorrect values, data drift, and unexpected outliers can cause a model to make confident but incorrect predictions without producing an obvious error. DQAL (Data-Quality-Aware Learning) is designed to address this problem by acting as a safety layer between incoming data and a deployed ML model. It continuously checks the quality of incoming data, detects issues such as missing values, distribution changes, and abnormal data, and assigns a quality score to each batch. Based on this score, DQAL decides whether the model should **SERVE** the prediction, **FLAG** the input for increased risk, or **ABSTAIN** when the data is considered unsafe. It also provides controlled retraining mechanisms to help prevent unreliable or corrupted data from being used to retrain the production model. In this way, DQAL helps make machine learning systems more reliable, explainable, and safer in production.
+
+-- 
 
 ## Overview
 
