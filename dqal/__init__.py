@@ -11,8 +11,9 @@ from dqal.logger import TelemetryLogger
 from dqal.wrapper import DQAL, DQALResult, adapt_model
 from dqal.orchestrator import RetrainOrchestrator, RetrainResult
 from dqal.learned_scorer import LearnedQualityScorer
+from dqal.standalone import check_quality, QualityReport
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __all__ = [
     "DQAL",
     "DQALConfig",
@@ -30,4 +31,6 @@ __all__ = [
     "ModelAdapter",
     "SubScorer",
     "adapt_model",
+    "check_quality",
+    "QualityReport",
 ]

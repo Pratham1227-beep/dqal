@@ -11,6 +11,7 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 [Quickstart](#-quickstart-in-60-seconds) •
+[CLI & Shift-Left](#-cli--shift-left-data-quality) •
 [Architecture](#-architecture) •
 [Key Capabilities](#-key-capabilities) •
 [Benchmarks](#-production-benchmarks) •
@@ -24,7 +25,11 @@
 
 Machine learning models often perform well during development but can become unreliable after they are deployed in the real world. Changes in incoming data, missing or incorrect values, data drift, and unexpected outliers can cause a model to make confident but incorrect predictions without producing an obvious error. DQAL (Data-Quality-Aware Learning) is designed to address this problem by acting as a safety layer between incoming data and a deployed ML model. It continuously checks the quality of incoming data, detects issues such as missing values, distribution changes, and abnormal data, and assigns a quality score to each batch. Based on this score, DQAL decides whether the model should **SERVE** the prediction, **FLAG** the input for increased risk, or **ABSTAIN** when the data is considered unsafe. It also provides controlled retraining mechanisms to help prevent unreliable or corrupted data from being used to retrain the production model. In this way, DQAL helps make machine learning systems more reliable, explainable, and safer in production.
 
--- 
+> [!TIP]
+> **Mental Model — Data Quality vs. Code Quality (Shift-Left):**
+> Just as linters, pre-commit hooks, and AI code reviewers (like CodeRabbit) inspect and format source code before it gets pushed to GitHub, **DQAL inspects data distributions, missingness, and drift** before inputs reach your ML models. It brings automated, shift-left quality gates to data pipelines.
+
+---
 
 ## Overview
 
@@ -113,6 +118,105 @@ Sub-Signals (1.0 = Pristine, 0.0 = Degraded):
 
 Sample Predictions: [0, 1, 0, 1, 0] (first 5 of 50 samples)
 ==============================================================
+```
+
+---
+
+## 🔍 CLI & Shift-Left Data Quality
+
+DQAL enables local, shift-left dataset validation in the terminal, in Git pre-commit hooks, and in CI/CD pull-request checks—without requiring an instantiated ML model.
+
+### 1. Terminal CLI (`dqal check`)
+
+Validate any newly collected or ingested dataset (.csv, .parquet, .json) against a baseline distribution:
+
+```bash
+# Basic validation against a training baseline
+dqal check data/test_batch.csv --baseline data/train_baseline.csv
+
+# Single-line compact output
+dqal check data/test_batch.csv --baseline data/train_baseline.csv --compact
+
+# JSON output for automated scripting
+dqal check data/test_batch.csv --baseline data/train_baseline.csv --json
+
+# Fail build on warning (exit code 1 for WARNING, 2 for BLOCKED)
+dqal check data/test_batch.csv --baseline data/train_baseline.csv --fail-on-warning
+```
+
+#### Exit Codes for CI/CD Automation
+| Exit Code | Status | Meaning |
+| :---: | :--- | :--- |
+| `0` | **`PASSED`** | Dataset quality checks passed cleanly |
+| `1` | **`WARNING`** / Error | Mild data degradation (with `--fail-on-warning`) or file/argument error |
+| `2` | **`BLOCKED`** | Critical data degradation (severe nulls, extreme drift, or outlier explosion) |
+
+---
+
+### 2. Standalone Python API (No Model Required)
+
+Validate data quality during exploratory data analysis (EDA), data wrangling, or pre-flight pipelines:
+
+```python
+import pandas as pd
+from dqal import check_quality
+
+# Load datasets
+current_df = pd.read_csv("data/batch_incoming.csv")
+train_df = pd.read_csv("data/train_baseline.csv")
+
+# Run comprehensive data quality assessment
+report = check_quality(current_df, baseline=train_df)
+
+# Print human-readable report card
+print(report.summary())
+
+# Programmatic checks
+if report.blocked:
+    raise ValueError(f"Batch rejected! Quality score Q={report.Q:.3f}")
+```
+
+---
+
+### 3. Git Pre-Commit Hook Integration
+
+Catch corrupted datasets locally before pushing to remote repositories or data stores:
+
+```yaml
+# .pre-commit-config.yaml
+repos:
+  - repo: local
+    hooks:
+      - id: dqal-check
+        name: DQAL Data Quality Gate
+        entry: dqal check
+        language: python
+        files: ^data/.*\.csv$
+        args: ["--baseline", "data/baseline.csv", "--fail-on-warning"]
+```
+
+---
+
+### 4. GitHub Actions CI Quality Gate
+
+Add automated dataset quality gates to your pull request workflows:
+
+```yaml
+# .github/workflows/data-quality.yml
+name: Data Quality Gate
+on: [pull_request, push]
+
+jobs:
+  validate-data:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install dqal
+      - name: Validate dataset quality
+        run: dqal check data/test_batch.csv --baseline data/train_baseline.csv --fail-on-warning
 ```
 
 ---

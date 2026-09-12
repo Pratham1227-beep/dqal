@@ -5,6 +5,15 @@ All notable changes to DQAL will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] — 2026-09-12
+
+### Added
+
+- **Command-Line Interface (CLI)**: Added `dqal check` and `dqal version` commands for inspecting datasets locally and in CI/CD pipelines (`dqal check data.csv --baseline train.csv`).
+- **Shift-Left Dataset Validation API (`check_quality`)**: Introduced standalone dataset quality verification function (`from dqal import check_quality`) to inspect missingness, distribution drift, and outliers without requiring an instantiated ML model.
+- **`QualityReport` Dataclass**: Comprehensive reporting object for dataset validation with `.summary()`, `.to_dict()`, `.passed`, `.warning`, and `.blocked` status properties.
+- **Pre-commit and GitHub Action Integration Support**: Standardized exit codes (0 = Passed, 1 = Warning/Error, 2 = Blocked) and JSON output format for automated Git hooks and CI PR quality gates.
+
 ## [0.1.0] — 2026-09-09
 
 ### Added
